@@ -1,4 +1,5 @@
 const Tour = require('../models/tourModel');
+const APIfeatures = require('../utils/apiFeatures');
 
 exports.aliasTopTours = (req, res, next) => {
   req.query.limit = '5';
@@ -6,56 +7,6 @@ exports.aliasTopTours = (req, res, next) => {
   req.query.fields = 'name,price,ratingsAverage,summary,difficulty';
   next();
 };
-
-class APIfeatures {
-  constructor(query, queryString) {
-    this.query = query;
-    this.queryString = queryString;
-  }
-
-  filter() {
-    const queryObj = { ...this.queryString };
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
-    excludedFields.forEach((el) => delete queryObj[el]);
-
-    let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
-
-    this.query.find(JSON.parse(queryStr));
-
-    return this;
-  }
-
-  sort() {
-    if (this.queryString.sort) {
-      const sortBy = this.queryString.sort.split(',').join(' ');
-      this.query = this.query.sort(sortBy);
-    } else {
-      this.query = this.query.sort('-createdAt');
-    }
-
-    return this;
-  }
-
-  limitFields() {
-    if (this.queryString.fields) {
-      const fields = this.queryString.fields.split(',').join(' ');
-      this.query = this.query.select(fields);
-    } else {
-      this.query = this.query.select('-__v');
-    }
-
-    return this;
-  }
-
-  pagination() {
-    const page = this.queryString.page * 1 || 1;
-    const limit = this.queryString.limit * 1 || 1;
-    const skip = (page - 1) * limit;
-
-    this.query = this.query.skip(skip).limit(limit);
-  }
-}
 
 exports.getAllTours = async (req, res) => {
   try {
@@ -120,6 +71,8 @@ exports.getAllTours = async (req, res) => {
     // }
 
     /////////////EXECUTE QUERY;
+    // const queryResult = await Tour.find();
+
     const features = new APIfeatures(Tour.find(), req.query)
       .filter()
       .sort()
@@ -127,6 +80,8 @@ exports.getAllTours = async (req, res) => {
       .pagination();
 
     const allTours = await features.query;
+    // const allTours = await Tour.find();
+
     // query.sort().select().skip().limit();
     // 이 method를 사용하게 되면 우리는 query를 return 받게 되고 그 query의 prototype의 method를 사용할 수 있게 된다
 
@@ -141,6 +96,7 @@ exports.getAllTours = async (req, res) => {
       },
     });
   } catch (err) {
+    console.log(err);
     res.status(400).json({
       status: 'error',
       message: 'fail!',
@@ -182,6 +138,7 @@ exports.createTours = async (req, res) => {
       },
     });
   } catch (err) {
+    console.log(err);
     res.status(400).json({
       status: 'fail',
       message: 'Invalid data sent!', //실제 현업에서는 이렇게 메세지만 보내서는 안된다고 조언하고 있음
@@ -222,6 +179,113 @@ exports.deleteTour = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: null,
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: 'Invalid data sent!',
+    });
+  }
+};
+
+///////////////////////Data aggregation/////////////////
+//해당 aggregation을 쓰게 되면 내가 가지고 있는 모든 데이터의 평균을 구할 수 있다//
+
+exports.getTourStats = async (req, res) => {
+  try {
+    const stats = await Tour.aggregate([
+      {
+        $match: { ratingsAverage: { $gte: 4.5 } },
+      },
+      {
+        //만약 5개의 averatings이 있다면 해당 ratings을 group화해서 평균을 내어줌
+        $group: {
+          // _id: '$ratingsAverage',
+          //여기 id에 만약 투어의 difficulty에 따른 평균이 구하고 싶을때 이렇게 넣어주면 됨, easy의 투어에는 몇개의 투어가 있고 가장 비싼 가격은 얼마이며 등등
+          _id: '$difficulty',
+          //해당 pipeline을 모두 지나가니까 지나갈때마다 1이 증가되는 느낌이라고 생각하면 될듯
+          numTours: { $sum: 1 },
+          numRatings: { $sum: '$ratingsQuantity' },
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+      {
+        $sort: { avgPrice: 1 },
+      },
+      {
+        //이렇게 함으로써 easy의 난이도를 가지고 있는 difficulty의 data는 안보게 된다, 이렇게 위에서 한번 match를 하고 아래에서 또 한번 그 작업을 수행할 수 있다, 좀 더 범위를 좁힐 수 있다
+        $match: { _id: { $ne: 'easy' } },
+      },
+    ]);
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        stats,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      status: 'fail',
+      message: 'Invalid data sent!',
+    });
+  }
+};
+
+exports.getMonthlyPlan = async (req, res) => {
+  try {
+    const year = req.params.year * 1;
+    const plan = await Tour.aggregate([
+      {
+        //startingDates가 여러개 있다면 그 순서대로 나열해서 1데이터 안에서도 여러개로 나눠준다,
+        $unwind: '$startDates',
+      },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: '$startDates' },
+          numTourStates: { $sum: 1 },
+          //결과는 id는 해당 달이 되고 numTour은
+          //몇개의 투어가 있는지 알려준다
+          tours: { $push: '$name' },
+        },
+      },
+      {
+        $addFields: { month: '$_id' },
+      },
+      {
+        $project: {
+          //project을 이용해서 해당 필드의 값을 0으로 하면 나타나지 않고 1로 하면 나타나게 된다
+          _id: 0,
+        },
+      },
+      {
+        //pipe라인으로 정해준 객체를 키로 지정후,
+        // 1 혹은 -1로 어떻게 정렬할건지를 정한다
+        $sort: { numTourStates: 1 },
+      },
+      {
+        //6개만 보여줌
+        $limit: 6,
+      },
+    ]);
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        plan,
+      },
     });
   } catch (err) {
     res.status(400).json({

@@ -18,6 +18,9 @@ router
   .route('/top-5-cheap')
   .get(tourControllerWithDB.aliasTopTours, tourControllerWithDB.getAllTours);
 
+router.route('/tour-status').get(tourControllerWithDB.getTourStats);
+router.route('/monthly-plan/:year').get(tourControllerWithDB.getMonthlyPlan);
+
 router
   .route('/')
   .get(tourControllerWithDB.getAllTours)

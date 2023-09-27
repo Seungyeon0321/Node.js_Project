@@ -122,3 +122,10 @@ Bridge between model and view layers
 둘이 완전 구별은 못하지만 그래도 되도록 두가지가 분리되도록 노력은 해보도록 하자!
 
 Fat models/thin controllers: offload as much logic as possible into the models, and keep the controllers as simple and lean as possible.
+
+Moongoose의 middleware같은 경우에는 만약 document를 save한다고 했을 때, 그 데이터가 데이터가 베이스가 세이브 되기전 그리고 후에 작동할 수 있는 미들웨어가 있다. 이를 pre | pro hook라고 말한다
+
+4 types middles wares
+document, query, aggregate, and model middleware
+
+middle ware는 schema 로직과 함께 작성한다?
