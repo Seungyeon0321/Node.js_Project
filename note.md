@@ -129,3 +129,26 @@ Moongoose의 middleware같은 경우에는 만약 document를 save한다고 했�
 document, query, aggregate, and model middleware
 
 middle ware는 schema 로직과 함께 작성한다?
+
+//error의 종류
+
+1. Operational errors
+   Problems that we can predict will happen at some point, so we just need to handle them in advance.
+
+- Invalid path accessed
+- Invalid user input (validator error from mongoose)
+- Failed to connect to server
+- Failed to connect to database
+- Request timeout
+- Ect...
+
+Operational errors같은 경우에는 중앙 집중적으로 에러를 handling한다고 생각하면 된다. (globally)
+
+2. Programming errors
+   bugs that we developers introduce into our code. Difficult to find and handle.
+
+- Reading properties on undefined;
+- Passing a number where an object is expected
+- Using await without async;
+- Using req.query instaed of req.body
+- Etc..

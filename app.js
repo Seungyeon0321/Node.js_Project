@@ -1,6 +1,8 @@
 const express = require('express');
 const morgan = require('morgan');
 
+const AppError = require('./utils/appError');
+const globalErrorHandler = require('./controllers/errorController');
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
 
@@ -23,11 +25,6 @@ app.use(express.static(`${__dirname}/public`));
 //미들웨어 만들기
 //next가 없으면 middle웨어는 stuck 해버리기 때문에 절대로 잊어먹어서는 안된다
 //아무 router을 set하지 않으면 모든 get, post와 같은 라우터에도 동작하게 된다
-
-// app.use((req, res, next) => {
-//   console.log('Hello from the middleware');
-//   next();
-// });
 
 //미들웨어는 이렇게 요청을 받고 응답을 하는 과정에서 새로운 데이터를 넣을 수 있다는 말인가? 그래서 효과적이라는 말인가
 app.use((req, res, next) => {
@@ -69,6 +66,27 @@ app.use((req, res, next) => {
 
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
+
+//미들웨어를 설정할 때는 해당 router위에 있어야 한다. 이를 이용해서 만약 제대로 된 url을 받게 되면 위에 있는 라우터가 실행되는 거고 잘못되면 아래의 에러 로직을 짠 곳으로 가기 때문에 해당 에러 메세지가 표시되는 것이다. 만약 저 app.all을 위로 올리기 되면 어떠한 경우에도 해당 조건이 충족되기 때문에 무조건 저 에러 메세지가 나오게 된다.
+
+//잘못된 url이 입력됐을 때 해당 메세지가 나오게 된다, 이는 오직 get에서만 받는 것이 아니라 all라고 했으니 다른 post, delete에서도 가능하게 된다
+app.all('*', (req, res, next) => {
+  // res.status(404).json({
+  //   status: 'fail',
+  //   message: `Can't find ${req.originalUrl} on this server!`,
+  // });
+
+  // const err = new Error(`Can't find ${req.originalUrl} on this server!`);
+  // err.status = 'fail';
+  // err.statusCode = 404;
+
+  //next로 pass해주는 것이 err라는 것을 express는 자동적으로 감지한다, 그렇기 때문에 다른 모든 middle ware은 무시하고(skip in the stack and go straight to this error handling middleware) 해당 error을 global err handling middleware로 보낸다
+
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+////////////create global err middle ware/////////////////
+app.use(globalErrorHandler);
 
 //////////////// 4) start server
 
