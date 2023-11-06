@@ -144,6 +144,14 @@ middle ware는 schema 로직과 함께 작성한다?
 
 Operational errors같은 경우에는 중앙 집중적으로 에러를 handling한다고 생각하면 된다. (globally)
 
+아래의 케이스 같은 경우에는 isOperational와 같이 Mark를 해둠으로써 operational error인지 구분이 되고 이에 맞는 로직을 구현하게 된다
+
+case 1. url을 잘못 입력하면 뭐가 에러인지 최소한 client에게 알려줘야 한다 ex. MongoDb가 처리하지 못하는 url 등
+case 2. Duplicate Name
+case 3. invalided input이 들어왔을 경우, create나 update을 할 경우
+
+로직은 보통 production environment에게 구현되야 한다
+
 2. Programming errors
    bugs that we developers introduce into our code. Difficult to find and handle.
 

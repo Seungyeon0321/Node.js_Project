@@ -1,6 +1,7 @@
 const Tour = require('../models/tourModel');
 const APIfeatures = require('../utils/apiFeatures');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 
 exports.aliasTopTours = (req, res, next) => {
   req.query.limit = '5';
@@ -87,6 +88,8 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
 
   //뒤에 query내용을 즉 params가 있을 경우에만 query한 녀석을 object로 받을 수 있다. 예를 들어서 127.0.01.1:3000/api/v1/tours?duration=5&&difficulty=easy 라고 요청 했을 때 duration 그리고 difficulty를 담은 오브젝트를 받을 수 있다
 
+  //all tour에 404 error을 추가하지 않는 이유는 아무리 제로 데이터의 결과를 반환하더라도 성공적으로 search를 했고 그 결과가 없으니 0를 리턴했기 때문에 정확히 보자면 200에 가깝기 때문에
+
   //////////SEND RESPONSE
   res.status(200).json({
     status: 'success',
@@ -102,6 +105,11 @@ exports.getTour = catchAsync(async (req, res, next) => {
   const tour = await Tour.findById(req.params.id);
   //Tour.findOne({ _id: req.params.id})
 
+  if (!tour) {
+    return next(new AppError('error', 404));
+  }
+
+  //여기서 return을 안하면 아래의 코드로 move on 해버리기 때문에 에러가 발생하면 바로 next을 이용해서 해당 middleware로 처리를 옮겨야 한다
   res.status(200).json({
     status: 'success',
     results: tour.length,
@@ -159,6 +167,10 @@ exports.updateTour = catchAsync(async (req, res, next) => {
     //runValidation은 만약 update한 data가 schema에 적합하지 않은 타입이 들어왔는지 확인하여, 만약 적합하지 않다면 error을 return하는 역활을 한다
   });
 
+  if (!updateTour) {
+    return next(new AppError('No tour found with that Id', 404));
+  }
+
   res.status(201).json({
     status: 'success',
     data: {
@@ -168,8 +180,12 @@ exports.updateTour = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteTour = catchAsync(async (req, res, next) => {
-  await Tour.findByIdAndDelete(req.params.id);
+  const tour = await Tour.findByIdAndDelete(req.params.id);
   //이렇게 query를 리턴하게 되면 어떻게 해당 데이터를 삭제하는 것인가? 아무것도 저장할 필요가 없다 그냥 삭제하면 되는 거니깐
+
+  if (!tour) {
+    return next(new AppError('No tour found with that Id', 404));
+  }
 
   res.status(201).json({
     status: 'success',
