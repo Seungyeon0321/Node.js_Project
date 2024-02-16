@@ -10,6 +10,8 @@ exports.aliasTopTours = (req, res, next) => {
   next();
 };
 
+//만약 이 aliasTopTours가 없다면 url은 tours?limit=5&sort=-ratingsAverage.price
+
 exports.getAllTours = catchAsync(async (req, res, next) => {
   ////////////BUILD QUERY
   //queryObj 기존의 query를 복사한다고 생각하면 됨, 그 다음에 그 녀석에다가 해당 excludedfileds를 지우는 거임, 해당 작업을 왜 하게 되냐면 나중에 pagenation같은 page가 url에 붙어버리기 때문에 그럴 경우에는 해당 find기능에서 duration + difficulty + page가 다 갖춰진 data를 찾기 때문에 해당 data의 값과 관련없는 url은 지워줘야 함, 그래서 이렇게 4개의 항목을 지운 query를 allTours variables에 저장
@@ -45,9 +47,11 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
   //   query = query.sort('-createdAt');
   // }
 
+  //URL =? tours?fields=name.duration.difficulty.price
   /// 4) field
   // if (req.query.fields) {
   //   const fields = req.query.fields.split(',').join(' ');
+  //   select는 해당 fileds name의 String을 가지고 있는 녀석에 접근할 수 있다
   //   query = query.select(fields);
   // } else {
   //   query = query.select('-__v');
@@ -58,8 +62,8 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
 
   //여기서 limit이 한 페이지당 보여주는 갯수인 거 같음
   // page=2&limit=10, 1-10, page 1, 11-20, page 2, 21-30 page 3 만약 페이지 3의 결과가 필요하다면 page 20을 skip해야 한다. 이부분을 참고하여 skip을 계산해야 함
-  // const page = req.query.page * 1 || 1;
-  // const limit = req.query.limit * 1 || 1;
+  // const page = req.query.page * 1 || 1; // *1를 해주는 것은 string을 number바꿔주기 위함임
+  // const limit = req.query.limit * 1 || 100;
   // const skip = (page - 1) * limit;
   // console.log(page, skip, limit);
 
@@ -181,7 +185,8 @@ exports.updateTour = catchAsync(async (req, res, next) => {
 
 exports.deleteTour = catchAsync(async (req, res, next) => {
   const tour = await Tour.findByIdAndDelete(req.params.id);
-  //이렇게 query를 리턴하게 되면 어떻게 해당 데이터를 삭제하는 것인가? 아무것도 저장할 필요가 없다 그냥 삭제하면 되는 거니깐
+  //이렇게 query를 리턴하게 되면 어떻게 해당 데이터를 삭제하는 것인가?
+  //아무것도 저장할 필요가 없다 그냥 삭제하면 되는 거니깐
 
   if (!tour) {
     return next(new AppError('No tour found with that Id', 404));

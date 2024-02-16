@@ -9,7 +9,7 @@ const userRouter = require('./routes/userRoutes');
 const app = express();
 
 // 1) MiDDLEWARE
-console.log(process.env.NODE_ENV);
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -29,6 +29,7 @@ app.use(express.static(`${__dirname}/public`));
 //미들웨어는 이렇게 요청을 받고 응답을 하는 과정에서 새로운 데이터를 넣을 수 있다는 말인가? 그래서 효과적이라는 말인가
 app.use((req, res, next) => {
   req.requestTime = new Date().toISOString();
+  console.log(req.headers);
   next();
 });
 
@@ -67,16 +68,18 @@ app.use((req, res, next) => {
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 
-//미들웨어를 설정할 때는 해당 router위에 있어야 한다. 이를 이용해서 만약 제대로 된 url을 받게 되면 위에 있는 라우터가 실행되는 거고 잘못되면 아래의 에러 로직을 짠 곳으로 가기 때문에 해당 에러 메세지가 표시되는 것이다. 만약 저 app.all을 위로 올리기 되면 어떠한 경우에도 해당 조건이 충족되기 때문에 무조건 저 에러 메세지가 나오게 된다.
+//미들웨어를 설정할 때는 해당 router위에 있어야 한다. 이를 이용해서 만약 제대로 된 url을 받게 되면 위에 있는 라우터가 실행되는 거고 잘못되면 아래의 에러 로직을 딴 곳으로 가기 때문에 해당 에러 메세지가 표시되는 것이다. 만약 저 app.all을 위로 올리기 되면 어떠한 경우에도 해당 조건이 충족되기 때문에 무조건 저 에러 메세지가 나오게 된다.
 
 //잘못된 url이 입력됐을 때 해당 메세지가 나오게 된다, 이는 오직 get에서만 받는 것이 아니라 all라고 했으니 다른 post, delete에서도 가능하게 된다
 app.all('*', (req, res, next) => {
-  // res.status(404).json({
-  //   status: 'fail',
-  //   message: `Can't find ${req.originalUrl} on this server!`,
-  // });
+  //   res.status(404).json({
+  //     status: 'fail',
+  //     message: `Can't find ${req.originalUrl} on this server!`,
+  //   });
 
-  // const err = new Error(`Can't find ${req.originalUrl} on this server!`);
+  // const err = new
+
+  Error(`Can't find ${req.originalUrl} on this server!`);
   // err.status = 'fail';
   // err.statusCode = 404;
 

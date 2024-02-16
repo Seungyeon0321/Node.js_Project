@@ -19,11 +19,12 @@ const tourSchema = new mongoose.Schema(
       //MongoError: E11000 duplicate key error collection라는 에러가 발생한다, unique는 technical하게 validation은 아니라고 본다, required은 validation임
       trim: true,
       //maxlength/minlength도 validater이다, 해당
+
       //validation을 적용하려면 각 runValidators: true로 설정해야 한다
       maxlength: [40, 'A tour name must have less or equal than 40 characters'],
       minlength: [10, 'A tour name must have more or equal than 10 characters'],
       //validator의 library 사용, 해당 method를 call을 하지 않고 그냥 참조만 하게 해둬야함
-      validate: [validator.isAlpha, 'tour name must only contain characters'],
+      // validate: [validator.isAlpha, 'tour name must only contain characters'],
     },
     slug: String,
     duration: {
@@ -61,6 +62,8 @@ const tourSchema = new mongoose.Schema(
     priceDiscount: {
       type: Number,
       //validate를 이용해서 이렇게 custom validator을 만들 수 있다, 해당 기능은 validator라는 library을 이용해서 쉽게 사용할 수 있다
+
+      //validator github에서 자세한 정보를 얻을 수 있다
       validate: {
         validator: function (val) {
           // this only points to current doc on NEW document creation
@@ -88,7 +91,7 @@ const tourSchema = new mongoose.Schema(
       type: Date,
       default: Date.now(),
       select: false,
-      //이렇게 client한테 보여주고 싶지 않은 데이터는 select false로 설정하면 된다
+      //이렇게 client한테 보여주고 싶지 않은 데이터는 select false로 설정하면 client에게 해당 data를 보내지지 않게 된다, default로
     },
     startDates: [Date],
     secretTour: {
@@ -104,7 +107,7 @@ const tourSchema = new mongoose.Schema(
 //model을 만들때는 무조건 앞자리는 대문자로!, 첫번째 arg는 schema의 이름, 두번째는 그 documents들
 
 ////////////////아래 코드는 test였음/////////////
-// Documnet 만들기 Tour의 instace가 되기 때문에 Tour안에 들어가 있는 method를 사용해서 database에 저장할 수 있다
+// Document 만들기 Tour의 instance가 되기 때문에 Tour안에 들어가 있는 method를 사용해서 database에 저장할 수 있다
 // const testTour = new Tour({
 //   name: 'the Forest Hiker',
 //   rating: 4.7,
@@ -135,6 +138,7 @@ tourSchema.virtual('durationWeeks').get(function () {
 
 //pre는 is gonna run before an actual event. 아래의 로직을 설명하자면 뒤에 callback function을 해당 save action이 실행하기 전에 동작한다고 생각하면 된다
 tourSchema.pre('save', function (next) {
+  console.log(this);
   this.slug = slugify(this.name, { lower: true });
   next();
 });
@@ -151,11 +155,11 @@ tourSchema.pre('save', function (next) {
 // });
 
 ////////////////QUERY MIDDLEWARE/////////////////
-//this will point the query, not the document
-// tourSchema.pre('find', function (next) {
-//   this.find({ secretTour: { $ne: true } });
-//   next();
-// });
+// this will point the query, not the document
+tourSchema.pre('find', function (next) {
+  this.find({ secretTour: { $ne: true } });
+  next();
+});
 //어떻게 동작하냐면 getAlltour을 하게 되면 find() 메서드가 동작하는데 그 때 이 find middleware도 동작하게 됨, 그다음에 이 this가 해당 query를 가르키게 되고 그 query 중에서 secretTour가 not equal, 즉 false인 녀석들을 불러오게 됨, 하지만 이렇게 find를 하게 되면 findOne()에 대한 동작은 안하게 된다. 이를 해결하기 위해서는 regular expression을 사용하게 된다,
 tourSchema.pre(/^find/, function (next) {
   this.find({ secretTour: { $ne: true } });
