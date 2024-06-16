@@ -11,12 +11,12 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: [true, 'Please provide your email'],
     unique: true,
     lowercase: true,
     validate: [validator.isEmail, 'Please provide a valid email'],
   },
-  //photo is optional
+  //photo is optional, just the path where the image is stored
   photo: String,
   role: {
     type: String,
@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema({
     },
   },
   passwordChangedAt: Date,
-  passwordRestToken: String,
+  passwordResetToken: String,
   passwordResetExpires: Date,
 });
 
@@ -90,18 +90,17 @@ userSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex');
 
   //sha256는 알고리즘이다
-  this.passwordRestToken = crypto
+  this.passwordResetToken = crypto
     .createHash('sha256')
     .update(resetToken)
     .digest('hex');
-
-  console.log({ resetToken });
 
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
 };
 
+//create a model from that schema
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
