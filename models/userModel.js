@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
   },
   //photo is optional, just the path where the image is stored
   photo: String,
+  //role을 추가함으로써 해당 role에 따라 access할 수 있는 범위가 달라진다
   role: {
     type: String,
     enum: ['user', 'guide', 'lead-guide', 'admin'],
@@ -44,6 +45,11 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetExpires: Date,
+  active: {
+    type: Boolean,
+    default: true,
+    select: false,
+  },
 });
 
 //pre는 data를 받고 db에 저장하기 전에 동작하게 되는 미들웨어다
@@ -57,6 +63,24 @@ userSchema.pre('save', async function (next) {
   //위에서 validation만 성공을 한다면 굳이 해당 confirm을 저장할 필요는 없기 때문에 undefined으로 설정
   // Delete passwordConfirm field
   this.passwordConfirm = undefined;
+  next();
+});
+
+userSchema.pre('save', function (next) {
+  //if we didn't modify the password property, simply move on next middleware
+  if (!this.isModified('password') || this.isNew) return next();
+
+  //여기서 -1000을 하는 이유는 시간 동기화 문제를 방지하기 위함이다. passwordChangedAt을 생성시기와 실제로 데이터베이스
+  //에 생성된 시간의 격차가 생길때가 있다
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+
+//before we get all user, we need to filter out the users who are not active
+//to do so, we need to have the middleware below
+userSchema.pre(/^find/, function (next) {
+  // this points to the current query, $ne means "not equal"
+  this.find({ active: { $ne: false } });
   next();
 });
 
@@ -87,6 +111,9 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
 userSchema.methods.createPasswordResetToken = function () {
   //새로운 토큰 생성, crypto는 built-in node.js 모듈이다
   //해당 토큰도 password랑 똑같은 기능을 하기 때문에 단순히 db에 저장하면 안된다
+
+  //새로 만들긴 하지만 password만큼 hashy로 암호화 할 필요는
+  //없기 때문에 crypto를 사용한다
   const resetToken = crypto.randomBytes(32).toString('hex');
 
   //sha256는 알고리즘이다
@@ -97,6 +124,7 @@ userSchema.methods.createPasswordResetToken = function () {
 
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
 
+  //this is one we sent through email
   return resetToken;
 };
 

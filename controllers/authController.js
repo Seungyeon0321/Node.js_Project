@@ -13,6 +13,31 @@ const signToken = (id) => {
   });
 };
 
+const createSendToken = (user, statusCode, res) => {
+  const token = signToken(user._id);
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
+    ),
+    httpOnly: true,
+  };
+  if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
+
+  //the way to send cookie in express
+  res.cookie('jwt', token, cookieOptions);
+
+  // Remove password from output
+  user.password = undefined;
+
+  res.status(statusCode).json({
+    status: 'success',
+    token,
+    data: {
+      user,
+    },
+  });
+};
+
 //jwt를 이용해서 sign up하기
 exports.signup = catchAsync(async (req, res, next) => {
   // 이렇게 하면 모든 유저의 데이터를 받아오기 때문에 필요한 부분만 받아야 한다
@@ -25,7 +50,7 @@ exports.signup = catchAsync(async (req, res, next) => {
     passwordConfirm: req.body.passwordConfirm,
     role: req.body.role,
   });
-
+  createSendToken(newUser, 201, res);
   const token = signToken(newUser._id);
 
   res.status(201).json({
@@ -44,20 +69,19 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!email || !password) {
     return next(new AppError('Please provide email and password!', 400));
   }
-  // 2) check if user exists && password is correct, password를 data를 받을 때, 못 받게 했기 때문에 이렇게 select('+password')를 넣어준거다
+  // 2) check if user exists && password is correct, data를 받을 때 password를 못 받게 modeling했기 때문에,
+  //이렇게 select('+password')를 넣어준거다
   const user = await User.findOne({ email }).select('+password');
+
   // comes from userModel, we can use it like below
   // const correct = await user.correctPassword(password, user.password);
 
+  //따로 if state를 만들게 되면 potential attack 가능성을 열어줄 수 도 있게 된다
   if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError('Incorrect email or password', 401));
   }
   // 3) If everything ok, send token to client
-  const token = signToken(user._id);
-  res.status(200).json({
-    status: 'success',
-    token,
-  });
+  createSendToken(user, 200, res);
 });
 
 ////////////////IMPORTANT//////////////////////////
@@ -79,7 +103,7 @@ exports.protect = catchAsync(async (req, res, next) => {
       new AppError('You are not logged in! Please log in to get access.', 401),
     );
   }
-  // 2) Verification token - promisify에 대해서 좀 더 알아보기
+  // 2) Verification token - promisify에 대해서 좀 더 알아보기 - 토큰이 expired 됐는지 아니면 누가 modified 했는지 체크
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
   // 3) Check if user still exists - 만약 token이 issue되고 나서
@@ -110,6 +134,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     // roles ['admin', 'lead-guide']. role = 'user'
+    //여기서 req.user은 currentUser이다, 위의 middleware에서 pass된 녀석이 오게 되어있음
     if (!roles.includes(req.user.role)) {
       return next(
         new AppError('You do not have permission to perform this action', 403),
@@ -133,7 +158,10 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   // 2) Generate the radom reset token, 코드가 길어지기 때문에 이 역시도
   // mongoose의 instance method를 이용한다,
   const resetToken = user.createPasswordResetToken();
-  console.log('restttttttttttt', resetToken);
+
+  //여기서 save를 하지 않으면 database에 들어가지 않는다
+  await user.save({ validateBeforeSave: false });
+
   // 3) Send it to user's email
   const resetURL = `${req.protocol}://${req.get(
     'host',
@@ -173,12 +201,11 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     .update(req.params.token)
     .digest('hex');
 
+  //we need to identify user and create the temporal token with the expires duration
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: Date.now() },
   });
-
-  console.log(user);
 
   // 2) If token has not expired, and there is user, set the new password
   if (!user) {
@@ -193,9 +220,29 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 
   // 3) Update changedPasswordAt property for the user
   // 4) Log the user in, send JWT
-  const token = signToken(user._id);
-  res.status(200).json({
-    status: 'success',
-    token,
-  });
+  createSendToken(user, 200, res);
+});
+
+exports.updateUserPassword = catchAsync(async (req, res, next) => {
+  // 1) Get user from collection
+  const user = await User.findById(req.user.id).select('+password');
+
+  // 2) check if POSTed current password is correct (compare the password with the one in database)
+  if (
+    !user ||
+    !(await user.correctPassword(req.body.passwordCurrent, user.password))
+  ) {
+    return next(new AppError('Incorrect email or password', 401));
+  }
+
+  // 3) if everything ok, then update password
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  await user.save();
+  // User.findByIdAndUpdate는 왜 이용을 안할까? 2 가지 이유 때문에
+  // i) user schema에 있는 password confirm의 validation function이 작동을 안하게 됨
+  // ii) 그리고 pre middleware이 작동 안하게 됨, meaning that encrypt하지 않게 됨
+
+  // 4) log user in, send JWT
+  createSendToken(user, 200, res);
 });

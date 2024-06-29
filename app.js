@@ -1,5 +1,10 @@
 const express = require('express');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -8,17 +13,51 @@ const userRouter = require('./routes/userRoutes');
 
 const app = express();
 
-// 1) MiDDLEWARE
+// 1) GLOBAL MIDDLEWARE
+//Set security HTTP headers
+app.use(helmet());
 
+// Development logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 //dotenv.config는 한번밖에 happen 안되기 때문에 그래서 process로 접근이 가능하다, 어떤 파일 안에 있다고 해도
 
+// Limit requests from same API
+const limiter = rateLimit({
+  max: 100,
+  windowMs: 60 * 60 * 1000,
+  message: 'Too many requests from this IP, please try again in 1 hour',
+});
+app.use('/api', limiter);
+
+// Body parser, reading data from body into req.body
 //이건 미들 웨어다 - a function that can modify the incoming request data, 이 미들 웨어가 없으면 post 파일이 undefined 결과값을 받는다
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent parameter pollution
+// whitelist를 추가함으로써 duplication을 허용한다
+app.use(
+  hpp({
+    whitelist: [
+      'duration',
+      'ratingsQuantity',
+      'ratingsAverage',
+      'maxGroupSize',
+      'difficulty',
+      'price',
+    ],
+  }),
+);
+
+// Serving static files
 //미들 웨어 중에서 html, 즉 public폴더에 저장되어있는 html파일에 접근할 수 있게 해주는 역할을 하는 녀석이 있다 (access static file)
 app.use(express.static(`${__dirname}/public`));
 
