@@ -27,9 +27,7 @@ mongoose
   });
 
 // READ JSON FILE
-const tours = JSON.parse(
-  fs.readFileSync(`${__dirname}/tours-simple.json`, 'utf-8'),
-);
+const tours = JSON.parse(fs.readFileSync(`${__dirname}/tours.json`, 'utf-8'));
 
 //만약 여기서 ./으로 상위 폴더로 가게 되면 해당 파일의 상위 폴더가 아니라 이 노드가 실행되는 녀석의 상위 폴더가 되기 때문에 해당 파일을 찾지 못하게 된다.
 
