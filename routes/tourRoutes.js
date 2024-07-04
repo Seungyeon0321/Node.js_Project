@@ -2,7 +2,27 @@ const express = require('express');
 const tourControllerWithDB = require('../controllers/tourControllerWithDB');
 
 const authController = require('../controllers/authController');
+const reviewRouter = require('./reviewRoutes');
 const router = express.Router();
+
+// ex)
+// POST /tour/234fad4/reviews
+// GET /tour/234fad4/reviews
+// GET /tour/234fad4/reviews/948787a
+
+//////////////// nested route //////////////////////
+// router
+//   .route('/:tourId/reviews')
+//   .post(
+//     authController.protect,
+//     authController.restrictTo('user'),
+//     reviewController.createReview,
+//   );
+// 하지만 해당 api같은 경우는 거의 review url과 흡사하기 때문에 좋지 않을 수 있다
+// 그래서 해당 한계점을 극복하고자 mergeParams를 사용한다
+
+//해당 tourID를 reviewRouter가 얻기 위해서 mergeParams를 이용해야 한다
+router.use('/:tourId/reviews', reviewRouter);
 
 //이렇게 미들웨어를 이용해서 아이디를 받아올 수 있다, pipeline
 

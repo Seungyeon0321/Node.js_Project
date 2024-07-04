@@ -1,5 +1,7 @@
 const fs = require('fs');
 const Tour = require('../models/tourModel');
+const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 
 // const tours = JSON.parse(
 //   fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`),
@@ -28,7 +30,6 @@ exports.checkID = (req, res, next, val) => {
 // };
 
 exports.getAllTours = (req, res) => {
-  console.log(req.requestTime);
   res.status(200).json({
     status: 'success',
     requestAt: req.requestTime,
@@ -39,8 +40,13 @@ exports.getAllTours = (req, res) => {
   });
 };
 
-exports.getTour = (req, res) => {
-  console.log(req.params);
+exports.getTour = catchAsync(async (req, res, next) => {
+  // 우리 모델중에서 populate하고 싶은 필드를 안에 적어준다
+  const tour = await Tour.findById(req.params.id).populate('guides');
+
+  if (!tour) {
+    return next(new AppError('No tour found with that ID', 404));
+  }
   // const id = req.params.id * 1;
   // const tour = tours.find((el) => el.id === id);
 
@@ -60,7 +66,7 @@ exports.getTour = (req, res) => {
   //     tour,
   //   },
   // });
-};
+});
 
 exports.postTours = (req, res) => {
   res.status(201).json({

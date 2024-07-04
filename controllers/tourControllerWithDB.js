@@ -2,6 +2,7 @@ const Tour = require('../models/tourModel');
 const APIfeatures = require('../utils/apiFeatures');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const factory = require('./handlerFactory');
 
 exports.aliasTopTours = (req, res, next) => {
   req.query.limit = '5';
@@ -104,9 +105,12 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
   });
 });
 
+// If I want to have reference model, this populate method is fundamental,
+// remember, population will create the new queue, so if I have a huge application,
+// I need to think about using this populate method.
 exports.getTour = catchAsync(async (req, res, next) => {
   //여기 params.id는 route가 동작할 때 :id 이 부분을 가지고 오게 된다
-  const tour = await Tour.findById(req.params.id);
+  const tour = await Tour.findById(req.params.id).populate('reviews');
   //Tour.findOne({ _id: req.params.id})
 
   if (!tour) {
@@ -116,7 +120,7 @@ exports.getTour = catchAsync(async (req, res, next) => {
   //여기서 return을 안하면 아래의 코드로 move on 해버리기 때문에 에러가 발생하면 바로 next을 이용해서 해당 middleware로 처리를 옮겨야 한다
   res.status(200).json({
     status: 'success',
-    results: tour.length,
+
     data: {
       tour,
     },
@@ -183,20 +187,21 @@ exports.updateTour = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteTour = catchAsync(async (req, res, next) => {
-  const tour = await Tour.findByIdAndDelete(req.params.id);
-  //이렇게 query를 리턴하게 되면 어떻게 해당 데이터를 삭제하는 것인가?
-  //아무것도 저장할 필요가 없다 그냥 삭제하면 되는 거니깐
+exports.deleteTour = factory.deleteOne(Tour);
+// exports.deleteTour = catchAsync(async (req, res, next) => {
+//   const tour = await Tour.findByIdAndDelete(req.params.id);
+//   //이렇게 query를 리턴하게 되면 어떻게 해당 데이터를 삭제하는 것인가?
+//   //아무것도 저장할 필요가 없다 그냥 삭제하면 되는 거니깐
 
-  if (!tour) {
-    return next(new AppError('No tour found with that Id', 404));
-  }
+//   if (!tour) {
+//     return next(new AppError('No tour found with that Id', 404));
+//   }
 
-  res.status(201).json({
-    status: 'success',
-    data: null,
-  });
-});
+//   res.status(201).json({
+//     status: 'success',
+//     data: null,
+//   });
+// });
 
 ///////////////////////Data aggregation/////////////////
 //해당 aggregation을 쓰게 되면 내가 가지고 있는 모든 데이터의 평균을 구할 수 있다//

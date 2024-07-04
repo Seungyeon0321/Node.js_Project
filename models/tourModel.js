@@ -77,7 +77,7 @@ const tourSchema = new mongoose.Schema(
     summary: {
       type: String,
       trim: true,
-      required: [true, 'A tour must have a description'],
+      required: [true, 'A tour must have a summary'],
     },
     description: {
       type: String,
@@ -166,6 +166,14 @@ tourSchema.virtual('durationWeeks').get(function () {
   return this.duration / 7;
 });
 
+// This is a virtual populate, 즉 가상의 populate이다, 실상의 populate가 아니라는 뜻이다,
+// 이렇게 함으로써 child document를 참조할 수 있게 된다
+tourSchema.virtual('reviews', {
+  ref: 'Review',
+  localField: '_id',
+  foreignField: 'tour',
+});
+
 ///////DOCUMENT MIDDLEWARE: run before .save() and .create() 'save'는 오직 이 두개의 method와 동작한다, 기억해라!
 
 //pre는 is gonna run before an actual event. 아래의 로직을 설명하자면 뒤에 callback function을 해당 save action이 실행하기 전에 동작한다고 생각하면 된다
@@ -207,11 +215,22 @@ tourSchema.pre(/^find/, function (next) {
 });
 // /^find/는 find로 시작하는 모든 녀석을 칭함
 
+tourSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'guides',
+    select: '-__v -passwordChangedAt',
+  });
+
+  next();
+});
+
 tourSchema.post(/^find/, function (docs, next) {
   console.log(`Query took ${Date.now() - this.start}`);
 
   next();
 });
+
+// If there is a duplication code, I can use this middleware to avoid it.
 
 /////////////aggregation middleware///////////////
 tourSchema.pre('aggregate', function (next) {
@@ -222,6 +241,6 @@ tourSchema.pre('aggregate', function (next) {
   next();
 });
 
-const Tour = mongoose.model('Tour', tourSchema);
+const Tour = mongoose.model('Tour', tourSchema, 'tours');
 
 module.exports = Tour;

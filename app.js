@@ -10,6 +10,7 @@ const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
+const reviewRouter = require('./routes/reviewRoutes');
 
 const app = express();
 
@@ -106,6 +107,7 @@ app.use((req, res, next) => {
 
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
+app.use('/api/v1/reviews', reviewRouter);
 
 //미들웨어를 설정할 때는 해당 router위에 있어야 한다. 이를 이용해서 만약 제대로 된 url을 받게 되면 위에 있는 라우터가 실행되는 거고 잘못되면 아래의 에러 로직을 딴 곳으로 가기 때문에 해당 에러 메세지가 표시되는 것이다. 만약 저 app.all을 위로 올리기 되면 어떠한 경우에도 해당 조건이 충족되기 때문에 무조건 저 에러 메세지가 나오게 된다.
 
