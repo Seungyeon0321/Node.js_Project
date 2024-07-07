@@ -134,59 +134,8 @@ exports.getTour = catchAsync(async (req, res, next) => {
 //   };
 // };
 
-exports.createTours = catchAsync(async (req, res, next) => {
-  const newTour = await Tour.create(req.body);
-
-  res.status(201).json({
-    status: 'success',
-    data: {
-      tour: newTour,
-    },
-
-    // const newTour = new Tour({})
-    // newTour.save() 이런 두줄의 코드 작업을 create() 메소드를 이용해서 한번에 끝낼 수 있다
-
-    // try {
-    //   const newTour = await Tour.create(req.body);
-
-    //   res.status(201).json({
-    //     status: 'success',
-    //     data: {
-    //       tour: newTour,
-    //     },
-    //   });
-    // } catch (err) {
-    //   console.log(err);
-    //   res.status(400).json({
-    //     status: 'fail',
-    //     message: 'Invalid data sent!', //실제 현업에서는 이렇게 메세지만 보내서는 안된다고 조언하고 있음
-    //   });
-    // }
-  });
-});
-
-exports.updateTour = catchAsync(async (req, res, next) => {
-  //First of all, we need to query the data that I want to update
-  const updateTour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    //if new is true, it will return the modified document rather than the original, defaults to false
-    //mongoose의 queries doc에서 참조하여 필요한 것을 사용해볼 필요가 있음
-    runValidators: true,
-    //runValidation은 만약 update한 data가 schema에 적합하지 않은 타입이 들어왔는지 확인하여, 만약 적합하지 않다면 error을 return하는 역활을 한다
-  });
-
-  if (!updateTour) {
-    return next(new AppError('No tour found with that Id', 404));
-  }
-
-  res.status(201).json({
-    status: 'success',
-    data: {
-      tour: updateTour,
-    },
-  });
-});
-
+exports.createTours = factory.createOne(Tour);
+exports.updateTour = factory.updateOne(Tour);
 exports.deleteTour = factory.deleteOne(Tour);
 // exports.deleteTour = catchAsync(async (req, res, next) => {
 //   const tour = await Tour.findByIdAndDelete(req.params.id);
