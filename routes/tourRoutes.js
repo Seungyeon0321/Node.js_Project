@@ -39,12 +39,33 @@ router
   .get(tourControllerWithDB.aliasTopTours, tourControllerWithDB.getAllTours);
 
 router.route('/tour-status').get(tourControllerWithDB.getTourStats);
-router.route('/monthly-plan/:year').get(tourControllerWithDB.getMonthlyPlan);
+router
+  .route('/monthly-plan/:year')
+  .get(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide', 'guide'),
+    tourControllerWithDB.getMonthlyPlan,
+  );
+
+//GeoSpatial queries
+// /tours-distance?distance=233&center=-40,45&unit=mi
+// /tours-within/233/center/-40,45/unit/mi
+router
+  .route('/tours-within/:distance/center/:latlng/unit/:unit')
+  .get(tourControllerWithDB.getToursWithin);
+
+router
+  .route('/distances/:latlng/unit/:unit')
+  .get(tourControllerWithDB.getDistances);
 
 router
   .route('/')
-  .get(authController.protect, tourControllerWithDB.getAllTours)
-  .post(tourControllerWithDB.createTours);
+  .get(tourControllerWithDB.getAllTours)
+  .post(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide'),
+    tourControllerWithDB.createTours,
+  );
 // .post(tourController.checkBody, tourController.postTours); <-- 미들 웨어 사용했을 때 코드
 //이미 미들웨어에서 /api/v1/tours로 동작하기 때문에 이 부분에서는 '/'가 들어가야함
 //여기에 getAllTours보다 먼저 authController 미들웨어가 들어가는 이유는
@@ -54,7 +75,11 @@ router
 router
   .route('/:id')
   .get(tourControllerWithDB.getTour)
-  .patch(tourControllerWithDB.updateTour)
+  .patch(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide'),
+    tourControllerWithDB.updateTour,
+  )
   .delete(
     authController.protect,
     authController.restrictTo('admin', 'lead-guide'),

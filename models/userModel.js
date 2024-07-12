@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-//pre는 data를 받고 db에 저장하기 전에 동작하게 되는 미들웨어다
+// pre는 data를 받고 db에 저장하기 전에 동작하게 되는 미들웨어다
 userSchema.pre('save', async function (next) {
   // Only run this function if password was actually modified
   if (!this.isModified('password')) return next();

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const slugify = require('slugify');
 const validator = require('validator');
 const User = require('./userModel');
+const { pipeline } = require('nodemailer/lib/xoauth2');
 
 ////Mongoose이용해서 schema 만들기
 const tourSchema = new mongoose.Schema(
@@ -51,6 +52,7 @@ const tourSchema = new mongoose.Schema(
       //min max 역시 validator
       min: [1, 'Rating must be above 1.0'],
       max: [5, 'Rating must be below 5.0'],
+      set: (val) => Math.round(val * 10) / 10, /// 4.66666 46.666666 4.7
     },
     ratingsQuantity: {
       type: Number,
@@ -157,6 +159,11 @@ const tourSchema = new mongoose.Schema(
 
 //이 model 섹션에서는 이렇게 스키마만 제공하고 실제로 CRUD는 controller에서 진행하기 때문에 이렇게 export해준다
 
+//compound index
+tourSchema.index({ price: 1, ratingsAverage: -1 });
+tourSchema.index({ slug: 1 });
+tourSchema.index({ startLocation: '2dsphere' });
+
 //해당 virtual을 이용하면 시간같은 경우는 day에서 week로 convert해주고 거리같은 경우는 km를 mile로 바꿔주는 기능이 있다
 
 //주의 사항으로는 여기서 arrow function을 쓰게 되면 아래 들어갈 this가 작동을 안하게 됨으로 일반 함수가 들어가야한다
@@ -178,7 +185,6 @@ tourSchema.virtual('reviews', {
 
 //pre는 is gonna run before an actual event. 아래의 로직을 설명하자면 뒤에 callback function을 해당 save action이 실행하기 전에 동작한다고 생각하면 된다
 tourSchema.pre('save', function (next) {
-  console.log(this);
   this.slug = slugify(this.name, { lower: true });
   next();
 });
@@ -233,13 +239,13 @@ tourSchema.post(/^find/, function (docs, next) {
 // If there is a duplication code, I can use this middleware to avoid it.
 
 /////////////aggregation middleware///////////////
-tourSchema.pre('aggregate', function (next) {
-  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+// tourSchema.pre('aggregate', function (next) {
+//   this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
 
-  console.log(this);
-  //여기서 this는 current aggregation object를 가르키게 된다//
-  next();
-});
+//   console.log(pipeline());
+//   //여기서 this는 current aggregation object를 가르키게 된다//
+//   next();
+// });
 
 const Tour = mongoose.model('Tour', tourSchema, 'tours');
 
