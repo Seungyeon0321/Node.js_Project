@@ -5,14 +5,19 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
+const path = require('path');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
+const viewRouter = require('./routes/viewRoutes');
 
 const app = express();
+
+app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, 'views'));
 
 // 1) GLOBAL MIDDLEWARE
 //Set security HTTP headers
@@ -60,7 +65,7 @@ app.use(
 
 // Serving static files
 //미들 웨어 중에서 html, 즉 public폴더에 저장되어있는 html파일에 접근할 수 있게 해주는 역할을 하는 녀석이 있다 (access static file)
-app.use(express.static(`${__dirname}/public`));
+app.use(express.static(path.join(__dirname, 'public')));
 
 //미들웨어 만들기
 //next가 없으면 middle웨어는 stuck 해버리기 때문에 절대로 잊어먹어서는 안된다
@@ -105,6 +110,9 @@ app.use((req, res, next) => {
 
 //이렇게 route를 쓰게 되면 위에 있는 모든 app 이하의 동작들을 체인할 수 있다
 
+// 3) ROUTES
+
+app.use('/', viewRouter);
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/reviews', reviewRouter);
