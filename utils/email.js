@@ -1,32 +1,62 @@
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
+const pug = require('pug');
+const { convert } = require('html-to-text');
 
 dotenv.config({ path: './config.env' });
 
-const sendEmail = async (options) => {
-  // 1) Create a transporter
+// new Email(user, url).sendWelcome();
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    auth: {
-      user: process.env.EMAIL_USERNAME,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
+module.exports = class Email {
+  constructor(user, url) {
+    this.to = user.email;
+    this.firstName = user.name.split(' ')[0];
+    this.url = url;
+    this.from = `Seungyeon Ji <${process.env.EMAIL_FROM}>`;
+  }
 
-  // 2) Define the email options
-  const mailOptions = {
-    from: 'Seungyeon Ji <hello@gmail.io>',
-    to: options.email,
-    subject: options.subject,
-    text: options.message,
-    // html:
-  };
-  // 3) Actually send the email
-  // promise를 return하게 된다
+  newTransport() {
+    if (process.env.NODE_ENV === 'production') {
+      // Sendgrid
+      return 1;
+    }
 
-  await transporter.sendMail(mailOptions);
+    return nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+  }
+
+  // Send the actual email
+  async send(template, subject) {
+    // 1) Render HTML based on a pug template
+    console.log(template);
+    const html = pug.renderFile(`${__dirname}/../views/email/${template}.pug`, {
+      firstName: this.firstName,
+      url: this.url,
+      subject,
+    });
+
+    const mailOptions = {
+      from: this.from,
+      to: this.to,
+      subject,
+      html,
+      text: convert(html),
+    };
+
+    console.log(mailOptions);
+
+    // 3) Create a transport and send email
+    await this.newTransport().sendMail(mailOptions);
+  }
+
+  async sendWelcome() {
+    console.log('whatttttttttt?');
+    await this.send('welcome', 'Welcome to the Natours Family!');
+  }
 };
-
-module.exports = sendEmail;

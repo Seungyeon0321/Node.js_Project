@@ -17,14 +17,6 @@ const viewRouter = require('./routes/viewRoutes');
 
 const app = express();
 
-app.use((req, res, next) => {
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://api.mapbox.com; script-src-elem 'self' https://api.mapbox.com; style-src 'self' 'unsafe-inline' https://api.mapbox.com; img-src 'self' data: https://api.mapbox.com",
-  );
-  next();
-});
-
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -49,7 +41,10 @@ app.use('/api', limiter);
 // Body parser, reading data from body into req.body
 //이건 미들 웨어다 - a function that can modify the incoming request data, 이 미들 웨어가 없으면 post 파일이 undefined 결과값을 받는다
 
+//body parser
 app.use(express.json({ limit: '10kb' }));
+//html form에서 보내는 rul을 받고 데이터를 받기 위해서 필요하다
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // Data sanitization against NoSQL query injection
@@ -84,7 +79,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 //미들웨어는 이렇게 요청을 받고 응답을 하는 과정에서 새로운 데이터를 넣을 수 있다는 말인가? 그래서 효과적이라는 말인가
 app.use((req, res, next) => {
   req.requestTime = new Date().toISOString();
-  console.log(req.cookies);
+  // console.log(req.cookies);
   next();
 });
 
@@ -151,11 +146,6 @@ app.all('*', (req, res, next) => {
 app.use(globalErrorHandler);
 
 //////////////// 4) start server
-
-const port = 3000;
-app.listen(port, () => {
-  console.log(`App running on port ${port}...`);
-});
 
 // 여기서 push를 통해 새로운 데이터(newTour)를 tours 배열에 추가하고, 동시에 fs.writeFile를 사용하여 파일에 데이터를 쓰는 것은 두 가지 다른 동작입니다.
 

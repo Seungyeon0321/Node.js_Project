@@ -17,7 +17,10 @@ const userSchema = new mongoose.Schema({
     validate: [validator.isEmail, 'Please provide a valid email'],
   },
   //photo is optional, just the path where the image is stored
-  photo: String,
+  photo: {
+    type: String,
+    default: 'default.jpg',
+  },
   //role을 추가함으로써 해당 role에 따라 access할 수 있는 범위가 달라진다
   role: {
     type: String,

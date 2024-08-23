@@ -1,8 +1,52 @@
 const User = require('../models/userModel');
 const AppError = require('../utils/appError');
-const factory = require('./handlerFactory');
-
 const catchAsync = require('../utils/catchAsync');
+const factory = require('./handlerFactory');
+const multer = require('multer');
+const sharp = require('sharp');
+
+// const multerStorage = multer.diskStorage({
+//   destination(req, file, cb) {
+//     cb(null, 'public/img/users');
+//   },
+//   filename(req, file, cb) {
+//     // user-123123123-123123123.jpeg mimetype 에서 확장자 추출을 할 수 있다
+//     const ext = file.mimetype.split('/')[1];
+//     cb(null, `user-${req.user.id}-${Date.now()}.${ext}`);
+//   },
+// });
+// To save image in memory
+const multerStorage = multer.memoryStorage();
+
+// We do not want to update no image file, multerFilter is used to filter out no image file
+const multerFilter = (req, file, cd) => {
+  if (file.mimetype.startsWith('image')) {
+    cd(null, true);
+  } else {
+    cd(new AppError('Not an image! Please upload only images.', 400), false);
+  }
+};
+
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: multerFilter,
+});
+
+exports.uploadUserPhoto = upload.single('photo');
+
+exports.resizeUserPhoto = catchAsync(async (req, res, next) => {
+  if (!req.file) return next();
+
+  req.file.filename = `user-${req.user.id}-${Date.now()}.jpeg`;
+
+  await sharp(req.file.buffer)
+    .resize(500, 500)
+    .toFormat('jpeg')
+    .jpeg({ quality: 90 })
+    .toFile(`public/img/users/${req.file.filename}`);
+
+  next();
+});
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
@@ -30,7 +74,8 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   }
 
   // 2) Filtered out unwanted fields names that are not allowed to be updated
-  const filteredBody = filterObj(req.body, 'name', 'email');
+  const filteredBody = await filterObj(req.body, 'name', 'email');
+  if (req.file) filteredBody.photo = req.file.filename;
 
   // 3) Update user document
   // filter is needed since user is not allowed to change other fields like role and
@@ -39,6 +84,8 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     new: true,
     runValidators: true,
   });
+
+  console.log('updatedUser', updatedUser);
 
   res.status(200).json({
     status: 'success',

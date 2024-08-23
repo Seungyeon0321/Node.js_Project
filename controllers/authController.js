@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/userModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
-const sendEmail = require('../utils/email');
+const Email = require('../utils/email');
 
 //jwt.sing(payload, secret, option)
 const signToken = (id) => {
@@ -41,25 +41,13 @@ const createSendToken = (user, statusCode, res) => {
 //jwt를 이용해서 sign up하기
 exports.signup = catchAsync(async (req, res, next) => {
   // 이렇게 하면 모든 유저의 데이터를 받아오기 때문에 필요한 부분만 받아야 한다
-  // const newUser = await User.create(req.body);
+  const newUser = await User.create(req.body);
+  console.log(newUser);
+  const url = `${req.protocol}://${req.get('host')}/me`;
 
-  const newUser = await User.create({
-    name: req.body.name,
-    email: req.body.email,
-    password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
-    role: req.body.role,
-  });
+  await new Email(newUser, url).sendWelcome();
+
   createSendToken(newUser, 201, res);
-  const token = signToken(newUser._id);
-
-  res.status(201).json({
-    status: 'success',
-    token,
-    data: {
-      user: newUser,
-    },
-  });
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -83,6 +71,16 @@ exports.login = catchAsync(async (req, res, next) => {
   // 3) If everything ok, send token to client
   createSendToken(user, 200, res);
 });
+
+// cookie는 브라우저에서 삭제나 수정이 불가능하기 때문에 기존이 있는 쿠키에
+// 다른 새로운 쿠키 (토큰이 포함되어 있지 않은 녀석)로 덮어씌우는 방법으로 로그아웃을 구현한다
+exports.logout = (req, res) => {
+  res.cookie('jwt', 'loggedout', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+  });
+  res.status(200).json({ status: 'success' });
+};
 
 ////////////////IMPORTANT//////////////////////////
 exports.protect = catchAsync(async (req, res, next) => {
@@ -128,39 +126,44 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // GRANT ACCESS TO PROTECTED ROUTE
   req.user = currentUser;
+  res.locals.user = currentUser;
   next();
 });
 
 // Only for rendered pages, no errors!
-exports.isLoggedIn = catchAsync(async (req, res, next) => {
+exports.isLoggedIn = async (req, res, next) => {
   // for our entire rendered website, the token will always only be sent using the cookie, and never the authorization header.
 
   if (req.cookies.jwt) {
-    // 1) verify token
-    const decoded = await promisify(jwt.verify)(
-      req.cookies.jwt,
-      process.env.JWT_SECRET,
-    );
+    try {
+      // 1) verify token
+      const decoded = await promisify(jwt.verify)(
+        req.cookies.jwt,
+        process.env.JWT_SECRET,
+      );
 
-    // 2) check if user still exists
-    const currentUser = await User.findById(decoded.id);
+      // 2) check if user still exists
+      const currentUser = await User.findById(decoded.id);
 
-    if (!currentUser) {
+      if (!currentUser) {
+        return next();
+      }
+
+      //check if user change password after the token was issued
+      if (currentUser.changedPasswordAfter(decoded.iat)) {
+        return next();
+      }
+
+      // THERE IS A LOGGED IN USER
+      res.locals.user = currentUser;
+      return next();
+    } catch (Err) {
       return next();
     }
-
-    //check if user change password after the token was issued
-    if (currentUser.changedPasswordAfter(decoded.iat)) {
-      return next();
-    }
-
-    // THERE IS A LOGGED IN USER
-    res.locals.user = currentUser;
-    return next();
   }
   // if there is no token, there is no user and move on next middleware
   next();
-});
+};
 
 //Only certain user can access a certain resource such as delete tours
 //미들 웨어는 보통 argument를 못 받는데 받게 할 수 있는 방법, 자세히 알아볼 필요가 있어보임
@@ -204,11 +207,11 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   \nIf you didn't forget your password, please ignore this email!`;
 
   try {
-    await sendEmail({
-      email: user.email,
-      subject: 'Your password reset token (valid for 10min)',
-      message,
-    });
+    // await sendEmail({
+    //   email: user.email,
+    //   subject: 'Your password reset token (valid for 10min)',
+    //   message,
+    // });
 
     res.status(200).json({
       status: 'success',
