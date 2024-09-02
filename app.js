@@ -2,6 +2,7 @@ const express = require('express');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const cors = require('cors');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
@@ -13,12 +14,20 @@ const globalErrorHandler = require('./controllers/errorController');
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
+const bookingsRouter = require('./routes/bookingsRoutes');
 const viewRouter = require('./routes/viewRoutes');
 
 const app = express();
 
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
+
+const corsOptions = {
+  origin: 'http://localhost:3000', // 프론트엔드 UR
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 // 1) GLOBAL MIDDLEWARE
 //Set security HTTP headers
@@ -121,6 +130,7 @@ app.use('/', viewRouter);
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/reviews', reviewRouter);
+app.use('/api/v1/bookings', bookingsRouter);
 
 //미들웨어를 설정할 때는 해당 router위에 있어야 한다. 이를 이용해서 만약 제대로 된 url을 받게 되면 위에 있는 라우터가 실행되는 거고 잘못되면 아래의 에러 로직을 딴 곳으로 가기 때문에 해당 에러 메세지가 표시되는 것이다. 만약 저 app.all을 위로 올리기 되면 어떠한 경우에도 해당 조건이 충족되기 때문에 무조건 저 에러 메세지가 나오게 된다.
 

@@ -84,8 +84,11 @@ exports.logout = (req, res) => {
 
 ////////////////IMPORTANT//////////////////////////
 exports.protect = catchAsync(async (req, res, next) => {
+  console.log('Cookies:', req.cookies);
+  console.log('Headers:', req.headers);
   // 1) Getting token and check of it's there
   let token;
+
   if (
     req.headers.authorization &&
     //startsWith은 해당 데이터가 ()안에 들어있는 녀석인지 체크하는 method이다
@@ -127,6 +130,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   // GRANT ACCESS TO PROTECTED ROUTE
   req.user = currentUser;
   res.locals.user = currentUser;
+  console.log('uuuuuuuuuuuuuuser', req.user);
   next();
 });
 
