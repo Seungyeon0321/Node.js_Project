@@ -8,6 +8,7 @@ const xss = require('xss-clean');
 const hpp = require('hpp');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -76,6 +77,8 @@ app.use(
     ],
   }),
 );
+
+app.use(compression());
 
 // Serving static files
 //미들 웨어 중에서 html, 즉 public폴더에 저장되어있는 html파일에 접근할 수 있게 해주는 역할을 하는 녀석이 있다 (access static file)

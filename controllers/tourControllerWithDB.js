@@ -31,8 +31,6 @@ exports.uploadTourImages = upload.fields([
 // upload.array('images', 5) req.files
 
 exports.resizeTourImages = catchAsync(async (req, res, next) => {
-  console.log(req);
-
   if (!req.files.imageCover || !req.files.images) return next();
 
   // 1) Cover image
@@ -320,8 +318,6 @@ exports.getToursWithin = catchAsync(async (req, res, next) => {
   if (!lat || !lng) {
     next(new AppError('Please provide latitude and longitude', 400));
   }
-
-  console.log(distance, latlng, unit);
 
   const tours = await Tour.find({
     startLocation: {
